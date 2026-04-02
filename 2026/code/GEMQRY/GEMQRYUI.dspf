@@ -1,0 +1,120 @@
+     A*=====================================================================
+     A* GEMQRYUI - Display File for Gemini Query Interface
+     A*=====================================================================
+     A                                      DSPSIZ(24 80 *DS3)
+     A                                      INDARA
+     A                                      CA03(03)
+     A                                      CA12(12)
+     A                                      PAGEDOWN(25)
+     A                                      PAGEUP(26)
+     A                                      PRINT
+     A*
+     A*=====================================================================
+     A* INPUT SCREEN
+     A*=====================================================================
+     A          R INPUTSCR                  CHGINPDFT(LC)
+     A                                  1  2'GEMINI QUERY INTERFACE'
+     A                                      DSPATR(HI RI)
+     A                                      COLOR(TRQ)
+     A                                  1 70TIME
+     A                                      COLOR(WHT)
+     A                                  2  2'Enter query parameters'
+     A                                      COLOR(YLW)
+     A            DUMMY1         1A  H
+     A*
+     A                                  5  2'Model:'
+     A                                      COLOR(PNK)
+     A            MODEL         50A  B  5 10COLOR(WHT)
+     A                                      DSPATR(UL)
+     A                                  6  2'(e.g., gemini-2.5-pro)'
+     A                                      COLOR(BLU)
+     A*
+     A                                  8  2'Query:'
+     A                                      COLOR(PNK)
+     A            QUERY         68A  B  8 10COLOR(WHT)
+     A                                      DSPATR(UL)
+     A            QUERY2        68A  B  9 10COLOR(WHT)
+     A                                      DSPATR(UL)
+     A            QUERY3        68A  B 10 10COLOR(WHT)
+     A                                      DSPATR(UL)
+     A            QUERY4        68A  B 11 10COLOR(WHT)
+     A                                      DSPATR(UL)
+     A*
+     A                                 22  2'F3=Exit   F12=Cancel'
+     A                                      COLOR(GRN)
+     A                                 23  2'Press Enter to execute'
+     A                                      COLOR(GRN)
+     A*
+     A*=====================================================================
+     A* OUTPUT SCREEN
+     A*=====================================================================
+     A          R OUTPUTSCR
+     A                                  1  2'GEMINI QUERY RESPONSE'
+     A                                      DSPATR(HI RI)
+     A                                      COLOR(TRQ)
+     A                                  1 70TIME
+     A                                      COLOR(WHT)
+     A                                  2  2'Model:'
+     A                                      COLOR(PNK)
+     A            OUTMODEL      50A  O  2 10COLOR(YLW)
+     A*
+     A                                  4  2'Response (Page'
+     A                                      COLOR(PNK)
+     A            PAGENBR        3A  O  4 17COLOR(WHT)
+     A                                  4 21'of'
+     A                                      COLOR(PNK)
+     A            TOTPAGES       3A  O  4 24COLOR(WHT)
+     A                                  4 28'):'
+     A                                      COLOR(PNK)
+     A*
+     A            LINE01        78A  O  5  2COLOR(WHT)
+     A            LINE02        78A  O  6  2COLOR(WHT)
+     A            LINE03        78A  O  7  2COLOR(WHT)
+     A            LINE04        78A  O  8  2COLOR(WHT)
+     A            LINE05        78A  O  9  2COLOR(WHT)
+     A            LINE06        78A  O 10  2COLOR(WHT)
+     A            LINE07        78A  O 11  2COLOR(WHT)
+     A            LINE08        78A  O 12  2COLOR(WHT)
+     A            LINE09        78A  O 13  2COLOR(WHT)
+     A            LINE10        78A  O 14  2COLOR(WHT)
+     A            LINE11        78A  O 15  2COLOR(WHT)
+     A            LINE12        78A  O 16  2COLOR(WHT)
+     A            LINE13        78A  O 17  2COLOR(WHT)
+     A            LINE14        78A  O 18  2COLOR(WHT)
+     A            LINE15        78A  O 19  2COLOR(WHT)
+     A            LINE16        78A  O 20  2COLOR(WHT)
+     A*
+     A                                 22  2'F3=Exit   F12=Return'
+     A                                      COLOR(GRN)
+     A                                 23  2'PageDown=Next PageUp=Prev'
+     A                                      COLOR(GRN)
+     A*
+     A*=====================================================================
+     A* ERROR SCREEN
+     A*=====================================================================
+     A          R ERRORSCR
+     A                                  1  2'GEMINI QUERY ERROR'
+     A                                      DSPATR(HI RI BL)
+     A                                      COLOR(RED)
+     A                                  1 70TIME
+     A                                      COLOR(WHT)
+     A                                  3  2'An error occurred:'
+     A                                      COLOR(YLW)
+     A                                      DSPATR(HI)
+     A            ERRMSG        78A  O  5  2COLOR(RED)
+     A                                      DSPATR(HI)
+     A            ERRMSG2       78A  O  6  2COLOR(RED)
+     A                                      DSPATR(HI)
+     A            ERRMSG3       78A  O  7  2COLOR(RED)
+     A                                      DSPATR(HI)
+     A            ERRMSG4       22A  O  8  2COLOR(RED)
+     A                                      DSPATR(HI)
+     A                                 10  2'SQLSTATE:'
+     A                                      COLOR(PNK)
+     A            SQLSTATE       5A  O 11  5COLOR(YLW)
+     A                                      DSPATR(HI)
+     A*
+     A                                 22  2'F3=Exit   F12=Return'
+     A                                      COLOR(GRN)
+     A                                 23  2'Press Enter to continue'
+     A                                      COLOR(GRN)

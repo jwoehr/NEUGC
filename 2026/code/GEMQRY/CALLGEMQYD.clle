@@ -1,0 +1,38 @@
+             PGM        PARM(&MODEL &QUERY)
+/*==============================================================================*/
+/* Program: CALLGEMQYD                                                          */
+/* Description: Call GEMQRYPGM with parameters from command                     */
+/*              API key is read from data area GEMINIKEY in library path        */
+/*==============================================================================*/
+/* CRTBNDCL PGM(CALLGEMQYD) SRCSTMF('/home/jwoehr/work/AI/CALLGEMQYD.clle') +   */
+/*   TGTCCSID(*JOB)                                                             */        
+/*==============================================================================*/
+/* CRTCMD CMD(YOURLIB/CALLGEMQYD) PGM(YOURLIB/CALLGEMQYD) +                     */
+/*  SRCSTMF('/path/to/CALLGEMQYD.cmd')                                          */
+/*==============================================================================*/
+
+
+             DCL        VAR(&MODEL) TYPE(*CHAR) LEN(100)
+             DCL        VAR(&QUERY) TYPE(*CHAR) LEN(500)
+             DCL        VAR(&CONTENT) TYPE(*CHAR) LEN(5000)
+             DCL        VAR(&RESULT) TYPE(*CHAR) LEN(5000)
+
+             /* Initialize */
+             CHGVAR     VAR(&CONTENT) VALUE(' ')
+             CHGVAR     VAR(&RESULT) VALUE(' ')
+
+             /* Build JSON content from query parameter */
+             CHGVAR     VAR(&CONTENT) VALUE('{"contents":[{"parts":[{"text":"')
+             CHGVAR     VAR(&CONTENT) VALUE(&CONTENT *TCAT +
+                          %TRIM(&QUERY) *TCAT '"}]}]}')
+
+             /* Call program - API key comes from data area */
+             CALL       PGM(GEMQRYPGM) PARM(&MODEL &CONTENT &RESULT)
+
+             /* Display result */
+             SNDUSRMSG  MSG('Gemini API call complete')
+             SNDUSRMSG  MSG('Result (first 500 chars):')
+             SNDUSRMSG  MSG(%SST(&RESULT 1 500))
+             SNDUSRMSG  MSG('Use DSPJOBLOG to see full result')
+
+             ENDPGM

@@ -1,0 +1,116 @@
+     A                                      DSPSIZ(24 80 *DS3)
+     A                                      INDARA
+     A*                                     these are the function keys used
+     A                                      CA03 CA04 CF06 CA12
+     A                                      PAGEUP
+     A                                      PAGEDOWN
+     A*                                     include the other function keys to
+     A*                                     prevent the keyboard from locking up
+     A                                      CA01 CA02 CA05 CA07 CA08 CF09 CA10
+     A                                      CA11 CA13 CA14 CA15 CA16 CA17 CA18
+     A                                      CA19 CA20 CA21 CA22 CA23 CA24
+     A*===============================================================
+     A          R RUNSCRN
+     A                                      OVERLAY
+     A                                  3  5'URL:'
+     A                                      COLOR(WHT)
+     A            RUN_URL       70A  O  3 10
+     A                                  4  3'Model:'
+     A                                      COLOR(WHT)
+     A            RUN_MODL      70A  O  4 10
+     A                                  6  2'Prompt:'
+     A                                      COLOR(WHT)
+     A            PROMPT       500A  B  6 10WRDWRAP
+     A                                      CHECK(LC)
+     A                                 14  4'Resp:'
+     A                                      COLOR(WHT)
+     A            RESPONSE     500A  B 14 10WRDWRAP
+     A                                 22  2'F3=Exit'
+     A                                      COLOR(BLU)
+     A                                 22 12'F4=Config'
+     A                                      COLOR(BLU)
+     A
+     A*===============================================================
+     A          R CFGSCRN
+     A                                      OVERLAY
+     A                                      RTNCSRLOC(&CURREC &CURFLD)
+     A            CURREC        10A  H
+     A            CURFLD        10A  H
+     A                                  2  2'Enter the desired values directly-
+     A                                       or press F4 to prompt.'
+     A                                       COLOR(BLU)
+     A                                  3  2'If the value doesn''t fit below,-
+     A                                       add the value to the config and-
+     A                                       use the prompt.'
+     A                                       COLOR(BLU)
+     A                                  6  4'Protocol:'
+     A                                      COLOR(WHT)
+     A            CFG_PROT      10A  B  6 14CHECK(LC)
+     A                                      CHANGE(31)
+     A  21                                  DSPATR(PC)
+     A                                  8  6'Server:'
+     A                                      COLOR(WHT)
+     A            CFG_SRVRH   1000A  H
+     A            CFG_SRVR     227A  B  8 14CHECK(LC)
+     A                                      CHANGE(32)
+     A  22                                  DSPATR(PC)
+     A                                 12  8'Port:'
+     A                                      COLOR(WHT)
+     A            CFG_PORT      10   B 12 14CHECK(LC)
+     A                                      CHANGE(33)
+     A  23                                  DSPATR(PC)
+     A                                 14  7'Model:'
+     A                                      COLOR(WHT)
+     A            CFG_MODLH   1000A  H
+     A            CFG_MODL     227A  B 14 14CHECK(LC)
+     A                                      CHANGE(34)
+     A  24                                  DSPATR(PC)
+     A                                 22  2'F12=Cancel'
+     A                                        COLOR(BLU)
+     A                                 22 15'F6=Make My Default'
+     A                                      COLOR(BLU)
+     A                                 22 36'Enter=Use these values'
+     A                                      COLOR(BLU)
+     A*===============================================================
+     A          R PROMPTSFL                 SFL
+     A  05                                  SFLNXTCHG
+     A            P_VALUE     1000A  H
+     A            P_SELECT       1A  B  6  2
+     A            P_TEXT        70A  O  6  5
+     A*----------------------------------------------------------------
+     A          R PROMPTCTL                 SFLCTL(PROMPTSFL)
+     A                                      SFLSIZ(0011)
+     A                                      SFLPAG(0010)
+     A                                      OVERLAY
+     A  01                                  SFLDSP
+     A  02                                  SFLDSPCTL
+     A N02                                  SFLCLR
+     A N03                                  SFLEND(*MORE)
+     A            P_RCDNBR       4S 0H      SFLRCDNBR
+     A                                  2  2'Prompt for'
+     A                                      COLOR(WHT)
+     A            P_FIELD       10A  O  2 13COLOR(WHT)
+     A                                  4  2'1=Select'
+     A                                      COLOR(BLU)
+     A*----------------------------------------------------------------
+     A          R PROMPTKEYS
+     A                                      OVERLAY
+     A                                 22  2'F12=Cancel'
+     A                                      COLOR(BLU)
+      *===============================================================
+      * MESSAGE SUBFILE
+      *===============================================================
+     A          R MSGSFL                    SFL
+     A                                      SFLMSGRCD(23)
+     A            MSGKEY                    SFLMSGKEY
+     A            PGMNAME                   SFLPGMQ
+      *----------------------------------------------------------------
+     A          R MSGSFLC                   SFLCTL(MSGSFL)
+     A                                      SFLSIZ(0002)
+     A                                      SFLPAG(0001)
+     A                                      OVERLAY
+     A                                      SFLDSP
+     A                                      SFLDSPCTL
+     A                                      SFLINZ
+     A N98                                  SFLEND
+     A            PGMNAME                   SFLPGMQ

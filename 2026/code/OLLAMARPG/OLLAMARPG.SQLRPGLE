@@ -51,6 +51,7 @@ Exec SQL SET OPTION
     NAMING=*SYS;
 
 fetchConfig();
+setForJob();
 dou keyPressed = F3;
 
     RUN_URL = %trim(protocol) + '://';

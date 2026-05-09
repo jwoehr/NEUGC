@@ -3,25 +3,6 @@
       *==================================================================
       * Program: GEMQRYUIC
       * Description: Interactive screen program for Gemini Query (COBOL)
-      *              Allows user to enter model and query, then displays
-      *              response with paging capability
-      *
-      * Display File: GEMQRYUIC
-      *
-      * Compilation:
-      *   1. Create display file:
-      *      CRTDSPF FILE(YOURLIB/GEMQRYUIC) +
-      *        SRCSTMF('/path/to/GEMQRYUIC.dspf')
-      *
-      *   2. Create program:
-      *      CRTSQLCBLI OBJ(YOURLIB/GEMQRYUIC) +
-      *        SRCSTMF('/path/to/GEMQRYUIC.sqlcblle') +
-      *        COMMIT(*NONE) OBJTYPE(*PGM) CVTCCSID(*JOB)
-      *
-      * Prerequisites:
-      *   - GEMINI_QUERY SQL function must be created
-      *   - GEMINIKEY data area must exist with API key
-      *   - GEMQRYUIC display file must be compiled
       *==================================================================
        
        ENVIRONMENT DIVISION.
@@ -36,7 +17,11 @@
        FILE SECTION.
        FD  DSPF
            LABEL RECORDS ARE STANDARD.
-       01  INPUTSCR-RECORD.
+       01  DSPF-RECORD                     PIC X(2000).
+       
+       WORKING-STORAGE SECTION.
+       
+       01  WS-INPUTSCR-RECORD.
            05  DUMMY1                      PIC X(1).
            05  MODEL                       PIC X(50).
            05  QUERY                       PIC X(68).
@@ -44,7 +29,7 @@
            05  QUERY3                      PIC X(68).
            05  QUERY4                      PIC X(68).
        
-       01  OUTPUTSCR-RECORD.
+       01  WS-OUTPUTSCR-RECORD.
            05  OUTMODEL                    PIC X(50).
            05  PAGENBR                     PIC X(3).
            05  TOTPAGES                    PIC X(3).
@@ -66,7 +51,7 @@
            05  LINE16                      PIC X(78).
            05  DUMMY2                      PIC X(1).
        
-       01  ERRORSCR-RECORD.
+       01  WS-ERRORSCR-RECORD.
            05  ERRMSG                      PIC X(78).
            05  ERRMSG2                     PIC X(78).
            05  ERRMSG3                     PIC X(78).
@@ -74,14 +59,13 @@
            05  SQLSTATE-OUT                PIC X(5).
            05  DUMMY3                      PIC X(1).
        
-       WORKING-STORAGE SECTION.
-       
       * File status for workstation file
        01  WS-FILE-STATUS                  PIC XX.
        
       * Indicators array
        01  WS-INDICATORS-AREA.
-           05  WS-INDICATOR                PIC 1 OCCURS 99 TIMES.
+           05  WS-INDICATOR                PIC 1 INDICATOR 1
+                                           OCCURS 99 TIMES.
        
       * SQL Communication Area
            EXEC SQL INCLUDE SQLCA END-EXEC.
@@ -151,6 +135,12 @@
            MOVE "N" TO WS-CANCEL-FLAG.
        
        MAIN-LOOP.
+      * Clear query fields so we don't accidentally send a previous query
+           MOVE SPACES TO QUERY
+           MOVE SPACES TO QUERY2
+           MOVE SPACES TO QUERY3
+           MOVE SPACES TO QUERY4
+           
       * Display input screen
            PERFORM DISPLAY-INPUT-SCREEN
            
@@ -204,10 +194,10 @@
            EXIT.
        
        DISPLAY-INPUT-SCREEN.
-           WRITE INPUTSCR-RECORD
+           WRITE DSPF-RECORD FROM WS-INPUTSCR-RECORD
                FORMAT IS "INPUTSCR"
                INDICATORS ARE WS-INDICATORS-AREA
-           READ DSPF
+           READ DSPF INTO WS-INPUTSCR-RECORD
                FORMAT IS "INPUTSCR"
                INDICATORS ARE WS-INDICATORS-AREA
                AT END CONTINUE
@@ -249,10 +239,12 @@
        CALL-GEMINI-API.
       * Build JSON content
            STRING '{"contents":[{"parts":[{"text":"'
+                  DELIMITED BY SIZE
                   FUNCTION TRIM(WS-FULL-QUERY)
+                  DELIMITED BY SIZE
                   '"}]}]}'
                   DELIMITED BY SIZE
-                  INTO WS-JSON-QUERY
+             INTO WS-JSON-QUERY
            END-STRING
            
            MOVE FUNCTION TRIM(MODEL) TO H-MODEL
@@ -416,20 +408,20 @@
            END-PERFORM.
        
        DISPLAY-OUTPUT-SCREEN.
-           WRITE OUTPUTSCR-RECORD
+           WRITE DSPF-RECORD FROM WS-OUTPUTSCR-RECORD
                FORMAT IS "OUTPUTSCR"
                INDICATORS ARE WS-INDICATORS-AREA
-           READ DSPF
+           READ DSPF INTO WS-OUTPUTSCR-RECORD
                FORMAT IS "OUTPUTSCR"
                INDICATORS ARE WS-INDICATORS-AREA
                AT END CONTINUE
            END-READ.
        
        DISPLAY-ERROR-SCREEN.
-           WRITE ERRORSCR-RECORD
+           WRITE DSPF-RECORD FROM WS-ERRORSCR-RECORD
                FORMAT IS "ERRORSCR"
                INDICATORS ARE WS-INDICATORS-AREA
-           READ DSPF
+           READ DSPF INTO WS-ERRORSCR-RECORD
                FORMAT IS "ERRORSCR"
                INDICATORS ARE WS-INDICATORS-AREA
                AT END CONTINUE

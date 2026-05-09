@@ -77,3 +77,14 @@ The COBOL program provides the same functionality as the RPG version:
 - File handling uses COBOL workstation file I/O
 - Indicator testing uses binary literals (B"1")
 - String operations use COBOL STRING and FUNCTION TRIM
+
+## Bugs
+
+- Key handling is flakey, to say the least.
+  - Safest is to only
+    - Type a query
+    - Hit enter
+    - Scroll thru the response
+    - Hit F3 to exit
+  - Otherwise you might get stuck and have to do a SYSREQ option 2 to exit.
+    - After which the display file is stuck and you'll need to invoke the program once more which will exit immediately unlocking the screen file.

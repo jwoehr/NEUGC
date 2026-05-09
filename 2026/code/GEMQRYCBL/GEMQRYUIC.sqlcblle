@@ -261,9 +261,9 @@
       * Execute SQL to call Gemini API
            EXEC SQL
                SELECT CAST(GEMINI_QUERY(
-                   :H-MODEL,
-                   :H-KEY,
-                   :H-CONTENT
+                   TRIM(:H-MODEL),
+                   TRIM(:H-KEY),
+                   TRIM(:H-CONTENT)
                ) AS VARCHAR(32000))
                INTO :H-RESULT-TEXT
                FROM SYSIBM.SYSDUMMY1

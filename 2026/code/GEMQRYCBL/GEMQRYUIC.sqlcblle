@@ -1,0 +1,439 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. GEMQRYUIC.
+      *==================================================================
+      * Program: GEMQRYUIC
+      * Description: Interactive screen program for Gemini Query (COBOL)
+      *              Allows user to enter model and query, then displays
+      *              response with paging capability
+      *
+      * Display File: GEMQRYUIC
+      *
+      * Compilation:
+      *   1. Create display file:
+      *      CRTDSPF FILE(YOURLIB/GEMQRYUIC) +
+      *        SRCSTMF('/path/to/GEMQRYUIC.dspf')
+      *
+      *   2. Create program:
+      *      CRTSQLCBLI OBJ(YOURLIB/GEMQRYUIC) +
+      *        SRCSTMF('/path/to/GEMQRYUIC.sqlcblle') +
+      *        COMMIT(*NONE) OBJTYPE(*PGM) CVTCCSID(*JOB)
+      *
+      * Prerequisites:
+      *   - GEMINI_QUERY SQL function must be created
+      *   - GEMINIKEY data area must exist with API key
+      *   - GEMQRYUIC display file must be compiled
+      *==================================================================
+       
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DSPF
+               ASSIGN TO WORKSTATION-GEMQRYUIC-SI
+               ORGANIZATION IS TRANSACTION
+               FILE STATUS IS WS-FILE-STATUS.
+       
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DSPF
+           LABEL RECORDS ARE STANDARD.
+       01  INPUTSCR-RECORD.
+           05  DUMMY1                      PIC X(1).
+           05  MODEL                       PIC X(50).
+           05  QUERY                       PIC X(68).
+           05  QUERY2                      PIC X(68).
+           05  QUERY3                      PIC X(68).
+           05  QUERY4                      PIC X(68).
+       
+       01  OUTPUTSCR-RECORD.
+           05  OUTMODEL                    PIC X(50).
+           05  PAGENBR                     PIC X(3).
+           05  TOTPAGES                    PIC X(3).
+           05  LINE01                      PIC X(78).
+           05  LINE02                      PIC X(78).
+           05  LINE03                      PIC X(78).
+           05  LINE04                      PIC X(78).
+           05  LINE05                      PIC X(78).
+           05  LINE06                      PIC X(78).
+           05  LINE07                      PIC X(78).
+           05  LINE08                      PIC X(78).
+           05  LINE09                      PIC X(78).
+           05  LINE10                      PIC X(78).
+           05  LINE11                      PIC X(78).
+           05  LINE12                      PIC X(78).
+           05  LINE13                      PIC X(78).
+           05  LINE14                      PIC X(78).
+           05  LINE15                      PIC X(78).
+           05  LINE16                      PIC X(78).
+           05  DUMMY2                      PIC X(1).
+       
+       01  ERRORSCR-RECORD.
+           05  ERRMSG                      PIC X(78).
+           05  ERRMSG2                     PIC X(78).
+           05  ERRMSG3                     PIC X(78).
+           05  ERRMSG4                     PIC X(22).
+           05  SQLSTATE-OUT                PIC X(5).
+           05  DUMMY3                      PIC X(1).
+       
+       WORKING-STORAGE SECTION.
+       
+      * File status for workstation file
+       01  WS-FILE-STATUS                  PIC XX.
+       
+      * Indicators array
+       01  WS-INDICATORS-AREA.
+           05  WS-INDICATOR                PIC 1 OCCURS 99 TIMES.
+       
+      * SQL Communication Area
+           EXEC SQL INCLUDE SQLCA END-EXEC.
+       
+      * Data area for API key
+       01  WS-API-KEY-DTAARA.
+           05  WS-API-KEY                  PIC X(100).
+       
+      * SQL host variables
+       01  SQL-HOST-VARS.
+           05  H-MODEL                     PIC X(100).
+           05  H-KEY                       PIC X(100).
+           05  H-CONTENT                   PIC X(5000).
+           05  H-RESULT-TEXT               PIC X(32000).
+       
+      * Working variables
+       01  WS-VARIABLES.
+           05  WS-JSON-QUERY               PIC X(5000).
+           05  WS-RESULT-LEN               PIC S9(9) COMP.
+           05  WS-CURRENT-PAGE             PIC S9(9) COMP VALUE 1.
+           05  WS-TOTAL-PAGES              PIC S9(9) COMP VALUE 1.
+           05  WS-LINE-START               PIC S9(9) COMP.
+           05  WS-LINE-END                 PIC S9(9) COMP.
+           05  WS-LINE-LEN                 PIC S9(9) COMP.
+           05  WS-LOOP-INDEX               PIC S9(9) COMP.
+           05  WS-DISPLAY-LINE             PIC X(78).
+           05  WS-PAGE-NBR-CHAR            PIC ZZZ9.
+           05  WS-TOT-PAGES-CHAR           PIC ZZZ9.
+           05  WS-FULL-QUERY               PIC X(272).
+           05  WS-PAGE-CAPACITY            PIC S9(9) COMP.
+           05  WS-REMAINDER                PIC S9(9) COMP.
+           05  WS-EXIT-FLAG                PIC X VALUE "N".
+               88  EXIT-REQUESTED          VALUE "Y".
+           05  WS-CANCEL-FLAG              PIC X VALUE "N".
+               88  CANCEL-REQUESTED        VALUE "Y".
+           05  WS-SQLCODE-CHAR             PIC -(9)9.
+           05  WS-DTAARA-NAME              PIC X(10) VALUE "GEMINIKEY".
+       
+      * Constants
+       01  WS-CONSTANTS.
+           05  LINES-PER-PAGE              PIC S9(4) COMP VALUE 16.
+           05  LINE-WIDTH                  PIC S9(4) COMP VALUE 78.
+       
+       PROCEDURE DIVISION.
+       MAIN-PROCEDURE.
+           PERFORM INITIALIZE-PROGRAM
+           PERFORM MAIN-LOOP UNTIL EXIT-REQUESTED
+           PERFORM TERMINATE-PROGRAM
+           STOP RUN.
+       
+       INITIALIZE-PROGRAM.
+           OPEN I-O DSPF
+           IF WS-FILE-STATUS NOT = "00"
+               DISPLAY "ERROR OPENING DSPF: " WS-FILE-STATUS
+               STOP RUN
+           END-IF
+           MOVE SPACES TO DUMMY1
+           MOVE SPACES TO DUMMY2
+           MOVE SPACES TO DUMMY3
+           MOVE "gemini-2.5-pro" TO MODEL
+           MOVE SPACES TO QUERY
+           MOVE SPACES TO QUERY2
+           MOVE SPACES TO QUERY3
+           MOVE SPACES TO QUERY4
+           MOVE 1 TO WS-CURRENT-PAGE
+           MOVE "N" TO WS-EXIT-FLAG
+           MOVE "N" TO WS-CANCEL-FLAG.
+       
+       MAIN-LOOP.
+      * Display input screen
+           PERFORM DISPLAY-INPUT-SCREEN
+           
+           IF WS-INDICATOR(03) = B"1"
+               MOVE "Y" TO WS-EXIT-FLAG
+               GO TO MAIN-LOOP-EXIT
+           END-IF
+           
+           IF WS-INDICATOR(12) = B"1"
+               GO TO MAIN-LOOP-EXIT
+           END-IF
+           
+      * Validate input
+           IF MODEL = SPACES
+               MOVE "gemini-2.5-pro" TO MODEL
+           END-IF
+           
+      * Combine query fields
+           STRING QUERY DELIMITED BY SIZE
+                  QUERY2 DELIMITED BY SIZE
+                  QUERY3 DELIMITED BY SIZE
+                  QUERY4 DELIMITED BY SIZE
+                  INTO WS-FULL-QUERY
+           END-STRING
+           
+           IF WS-FULL-QUERY = SPACES
+               MOVE "Query cannot be empty" TO ERRMSG
+               MOVE SPACES TO ERRMSG2
+               MOVE SPACES TO ERRMSG3
+               MOVE SPACES TO ERRMSG4
+               PERFORM DISPLAY-ERROR-SCREEN
+               GO TO MAIN-LOOP-EXIT
+           END-IF
+           
+      * Read API key from data area
+           PERFORM READ-API-KEY
+           IF WS-EXIT-FLAG = "Y"
+               GO TO MAIN-LOOP-EXIT
+           END-IF
+           
+      * Call Gemini API
+           PERFORM CALL-GEMINI-API
+           IF WS-EXIT-FLAG = "Y"
+               GO TO MAIN-LOOP-EXIT
+           END-IF
+           
+      * Display response with paging
+           PERFORM DISPLAY-RESPONSE-LOOP.
+       
+       MAIN-LOOP-EXIT.
+           EXIT.
+       
+       DISPLAY-INPUT-SCREEN.
+           WRITE INPUTSCR-RECORD
+               FORMAT IS "INPUTSCR"
+               INDICATORS ARE WS-INDICATORS-AREA
+           READ DSPF
+               FORMAT IS "INPUTSCR"
+               INDICATORS ARE WS-INDICATORS-AREA
+               AT END CONTINUE
+           END-READ.
+       
+       READ-API-KEY.
+      * Retrieve API key from data area GEMINIKEY using table function
+           MOVE SPACES TO WS-API-KEY OF WS-API-KEY-DTAARA
+           EXEC SQL
+               SELECT TRIM(DATA_AREA_VALUE)
+               INTO :WS-API-KEY-DTAARA.WS-API-KEY
+               FROM TABLE(QSYS2.DATA_AREA_INFO(DATA_AREA_NAME
+                => :WS-DTAARA-NAME))
+           END-EXEC
+           
+           IF SQLCODE NOT = 0
+               MOVE "Error reading data area GEMINIKEY" TO ERRMSG
+               MOVE SQLCODE TO WS-SQLCODE-CHAR
+               STRING "SQLCODE: " WS-SQLCODE-CHAR
+                   DELIMITED BY SIZE INTO ERRMSG2
+               MOVE SQLSTATE TO ERRMSG3
+               MOVE SPACES TO ERRMSG4
+               PERFORM DISPLAY-ERROR-SCREEN
+               MOVE "Y" TO WS-EXIT-FLAG
+           ELSE
+               IF WS-API-KEY OF WS-API-KEY-DTAARA = SPACES
+                   MOVE "API key is empty in data area GEMINIKEY"
+                       TO ERRMSG
+                   MOVE SPACES TO ERRMSG2
+                   MOVE SPACES TO ERRMSG3
+                   MOVE SPACES TO ERRMSG4
+                   PERFORM DISPLAY-ERROR-SCREEN
+                   MOVE "Y" TO WS-EXIT-FLAG
+               ELSE
+                   MOVE WS-API-KEY OF WS-API-KEY-DTAARA TO H-KEY
+               END-IF
+           END-IF.
+       
+       CALL-GEMINI-API.
+      * Build JSON content
+           STRING '{"contents":[{"parts":[{"text":"'
+                  FUNCTION TRIM(WS-FULL-QUERY)
+                  '"}]}]}'
+                  DELIMITED BY SIZE
+                  INTO WS-JSON-QUERY
+           END-STRING
+           
+           MOVE FUNCTION TRIM(MODEL) TO H-MODEL
+           MOVE WS-JSON-QUERY TO H-CONTENT
+           
+      * Execute SQL to call Gemini API
+           EXEC SQL
+               SELECT CAST(GEMINI_QUERY(
+                   :H-MODEL,
+                   :H-KEY,
+                   :H-CONTENT
+               ) AS VARCHAR(32000))
+               INTO :H-RESULT-TEXT
+               FROM SYSIBM.SYSDUMMY1
+           END-EXEC
+           
+      * Check for SQL errors
+           IF SQLCODE NOT = 0
+               MOVE "Error calling Gemini API" TO ERRMSG
+               MOVE SQLCODE TO WS-SQLCODE-CHAR
+               STRING "SQLCODE: " WS-SQLCODE-CHAR
+                   DELIMITED BY SIZE INTO ERRMSG2
+               MOVE SPACES TO ERRMSG3
+               MOVE SPACES TO ERRMSG4
+               MOVE SQLSTATE TO SQLSTATE-OUT
+               PERFORM DISPLAY-ERROR-SCREEN
+               MOVE "Y" TO WS-EXIT-FLAG
+               GO TO CALL-GEMINI-API-EXIT
+           END-IF
+           
+      * Check for truncation warning
+           IF SQLWARN0 = "W"
+               MOVE "Warning: Response truncated to 32000 characters"
+                   TO ERRMSG
+               MOVE "Full response may be larger than displayed"
+                   TO ERRMSG2
+               MOVE SPACES TO ERRMSG3
+               MOVE SPACES TO ERRMSG4
+               PERFORM DISPLAY-ERROR-SCREEN
+           END-IF
+           
+      * Calculate result length and pages
+           MOVE FUNCTION LENGTH(FUNCTION TRIM(H-RESULT-TEXT))
+               TO WS-RESULT-LEN
+           
+           COMPUTE WS-PAGE-CAPACITY = LINES-PER-PAGE * LINE-WIDTH
+           DIVIDE WS-RESULT-LEN BY WS-PAGE-CAPACITY
+               GIVING WS-TOTAL-PAGES
+               REMAINDER WS-REMAINDER
+           
+           IF WS-REMAINDER > 0
+               ADD 1 TO WS-TOTAL-PAGES
+           END-IF
+           
+           IF WS-TOTAL-PAGES = 0
+               MOVE 1 TO WS-TOTAL-PAGES
+           END-IF
+           
+           MOVE 1 TO WS-CURRENT-PAGE.
+       
+       CALL-GEMINI-API-EXIT.
+           EXIT.
+       
+       DISPLAY-RESPONSE-LOOP.
+           MOVE "N" TO WS-CANCEL-FLAG
+           PERFORM UNTIL EXIT-REQUESTED OR CANCEL-REQUESTED
+               PERFORM PREPARE-OUTPUT-PAGE
+               PERFORM DISPLAY-OUTPUT-SCREEN
+               
+               IF WS-INDICATOR(03) = B"1"
+                   MOVE "Y" TO WS-EXIT-FLAG
+                   EXIT PERFORM
+               END-IF
+               
+               IF WS-INDICATOR(12) = B"1"
+                   MOVE "Y" TO WS-CANCEL-FLAG
+                   EXIT PERFORM
+               END-IF
+               
+      * Handle paging
+               IF WS-INDICATOR(25) = B"1" AND
+                  WS-CURRENT-PAGE < WS-TOTAL-PAGES
+                   ADD 1 TO WS-CURRENT-PAGE
+               END-IF
+               
+               IF WS-INDICATOR(26) = B"1" AND
+                  WS-CURRENT-PAGE > 1
+                   SUBTRACT 1 FROM WS-CURRENT-PAGE
+               END-IF
+           END-PERFORM.
+       
+       PREPARE-OUTPUT-PAGE.
+           MOVE MODEL TO OUTMODEL
+           MOVE WS-CURRENT-PAGE TO WS-PAGE-NBR-CHAR
+           MOVE WS-PAGE-NBR-CHAR TO PAGENBR
+           MOVE WS-TOTAL-PAGES TO WS-TOT-PAGES-CHAR
+           MOVE WS-TOT-PAGES-CHAR TO TOTPAGES
+           
+      * Calculate starting position for current page
+           COMPUTE WS-LINE-START =
+               ((WS-CURRENT-PAGE - 1) * LINES-PER-PAGE * LINE-WIDTH) + 1
+           
+      * Clear all lines
+           MOVE SPACES TO LINE01
+           MOVE SPACES TO LINE02
+           MOVE SPACES TO LINE03
+           MOVE SPACES TO LINE04
+           MOVE SPACES TO LINE05
+           MOVE SPACES TO LINE06
+           MOVE SPACES TO LINE07
+           MOVE SPACES TO LINE08
+           MOVE SPACES TO LINE09
+           MOVE SPACES TO LINE10
+           MOVE SPACES TO LINE11
+           MOVE SPACES TO LINE12
+           MOVE SPACES TO LINE13
+           MOVE SPACES TO LINE14
+           MOVE SPACES TO LINE15
+           MOVE SPACES TO LINE16
+           
+      * Fill lines for current page
+           PERFORM VARYING WS-LOOP-INDEX FROM 1 BY 1
+               UNTIL WS-LOOP-INDEX > LINES-PER-PAGE
+               
+               COMPUTE WS-LINE-END = WS-LINE-START + LINE-WIDTH - 1
+               
+               IF WS-LINE-START <= WS-RESULT-LEN
+                   IF WS-LINE-END > WS-RESULT-LEN
+                       MOVE WS-RESULT-LEN TO WS-LINE-END
+                   END-IF
+                   
+                   COMPUTE WS-LINE-LEN = WS-LINE-END - WS-LINE-START + 1
+                   
+                   IF WS-LINE-LEN > 0
+                       MOVE H-RESULT-TEXT(WS-LINE-START:WS-LINE-LEN)
+                           TO WS-DISPLAY-LINE
+                   END-IF
+                   
+      * Assign to appropriate line field
+                   EVALUATE WS-LOOP-INDEX
+                       WHEN 1  MOVE WS-DISPLAY-LINE TO LINE01
+                       WHEN 2  MOVE WS-DISPLAY-LINE TO LINE02
+                       WHEN 3  MOVE WS-DISPLAY-LINE TO LINE03
+                       WHEN 4  MOVE WS-DISPLAY-LINE TO LINE04
+                       WHEN 5  MOVE WS-DISPLAY-LINE TO LINE05
+                       WHEN 6  MOVE WS-DISPLAY-LINE TO LINE06
+                       WHEN 7  MOVE WS-DISPLAY-LINE TO LINE07
+                       WHEN 8  MOVE WS-DISPLAY-LINE TO LINE08
+                       WHEN 9  MOVE WS-DISPLAY-LINE TO LINE09
+                       WHEN 10 MOVE WS-DISPLAY-LINE TO LINE10
+                       WHEN 11 MOVE WS-DISPLAY-LINE TO LINE11
+                       WHEN 12 MOVE WS-DISPLAY-LINE TO LINE12
+                       WHEN 13 MOVE WS-DISPLAY-LINE TO LINE13
+                       WHEN 14 MOVE WS-DISPLAY-LINE TO LINE14
+                       WHEN 15 MOVE WS-DISPLAY-LINE TO LINE15
+                       WHEN 16 MOVE WS-DISPLAY-LINE TO LINE16
+                   END-EVALUATE
+                   
+                   COMPUTE WS-LINE-START = WS-LINE-END + 1
+               END-IF
+           END-PERFORM.
+       
+       DISPLAY-OUTPUT-SCREEN.
+           WRITE OUTPUTSCR-RECORD
+               FORMAT IS "OUTPUTSCR"
+               INDICATORS ARE WS-INDICATORS-AREA
+           READ DSPF
+               FORMAT IS "OUTPUTSCR"
+               INDICATORS ARE WS-INDICATORS-AREA
+               AT END CONTINUE
+           END-READ.
+       
+       DISPLAY-ERROR-SCREEN.
+           WRITE ERRORSCR-RECORD
+               FORMAT IS "ERRORSCR"
+               INDICATORS ARE WS-INDICATORS-AREA
+           READ DSPF
+               FORMAT IS "ERRORSCR"
+               INDICATORS ARE WS-INDICATORS-AREA
+               AT END CONTINUE
+           END-READ.
+       
+       TERMINATE-PROGRAM.
+           CLOSE DSPF.

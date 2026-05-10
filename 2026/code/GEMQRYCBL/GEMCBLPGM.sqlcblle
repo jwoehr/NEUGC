@@ -1,0 +1,109 @@
+       PROCESS NOMONOPRC.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. GEMCBLPGM.
+      *======================================================================
+      * Program: GEMCBLPGM (COBOL Version)
+      * Description: SQLCBLLE wrapper for GEMINI_QUERY using SQL to read
+      *              the data area for the API key.
+      *
+      * Compilation:
+      *   CRTSQLCBLI OBJ(YOURLIB/GEMCBLPGM) 
+      *              SRCSTMF('/path/to/GEMCBLPGM.sqlcblle')
+      *              COMMIT(*NONE) OBJTYPE(*PGM) CVTCCSID(*JOB)
+      *======================================================================
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-I.
+       OBJECT-COMPUTER. IBM-I.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+           EXEC SQL INCLUDE SQLCA END-EXEC.
+
+       01  WS-SQL-VARS.
+           05  H-MODEL         PIC X(100).
+           05  H-KEY           PIC X(100).
+           05  H-CONTENT       PIC X(5000).
+           05  H-RESULT        PIC X(32000).
+
+       01  WS-VARIABLES.
+           05  WS-DTAARA-NAME  PIC X(10) VALUE "GEMINIKEY".
+           05  WS-IDX          PIC S9(4) COMP.
+
+       LINKAGE SECTION.
+       01  P-MODEL             PIC X(100).
+       01  P-CONTENT           PIC X(5000).
+       01  P-RESULT            PIC X(5000).
+
+       PROCEDURE DIVISION USING P-MODEL P-CONTENT P-RESULT.
+       MAIN-LOGIC.
+      * Initialize result
+           MOVE SPACES TO P-RESULT.
+
+      * Override with parameters if provided
+           IF P-MODEL = SPACES
+               MOVE "gemini-2.5-flash" TO H-MODEL
+           ELSE
+               MOVE P-MODEL TO H-MODEL
+           END-IF.
+
+           IF P-CONTENT = SPACES
+               MOVE "What is IBM i?" TO P-CONTENT
+           ELSE
+      * Sanitize command-line garbage by replacing control chars with spaces
+               PERFORM VARYING WS-IDX FROM 1 BY 1 UNTIL WS-IDX > 5000
+                   IF P-CONTENT(WS-IDX:1) < SPACE
+                       MOVE SPACE TO P-CONTENT(WS-IDX:1)
+                   END-IF
+               END-PERFORM
+           END-IF.
+           
+      * Build JSON content
+           MOVE SPACES TO H-CONTENT
+           STRING '{"contents":[{"parts":[{"text":"' DELIMITED BY SIZE
+                  FUNCTION TRIM(P-CONTENT) DELIMITED BY SIZE
+                  '"}]}]}' DELIMITED BY SIZE
+                  INTO H-CONTENT
+           END-STRING.
+
+      * Read API key from Data Area using SQL
+           MOVE SPACES TO H-KEY.
+           EXEC SQL
+               SELECT TRIM(DATA_AREA_VALUE)
+               INTO :H-KEY
+               FROM TABLE(QSYS2.DATA_AREA_INFO(DATA_AREA_NAME
+                => :WS-DTAARA-NAME))
+           END-EXEC.
+
+           IF SQLCODE NOT = 0 OR H-KEY = SPACES
+              DISPLAY "Error: API key not found in data area GEMINIKEY"
+              GOBACK
+           END-IF.
+
+      * Call the GEMINI_QUERY function
+           DISPLAY "--- DEBUG INFO ---"
+           DISPLAY "MODEL:   " H-MODEL(1:50)
+           DISPLAY "CONTENT1:" H-CONTENT(1:100)
+           DISPLAY "CONTENT2:" H-CONTENT(101:100)
+           DISPLAY "CONTENT3:" H-CONTENT(201:100)
+           DISPLAY "------------------"
+           MOVE SPACES TO H-RESULT.
+           EXEC SQL
+               SELECT CAST(GEMINI_QUERY(
+                   TRIM(:H-MODEL),
+                   TRIM(:H-KEY),
+                   TRIM(:H-CONTENT)
+               ) AS VARCHAR(32000))
+               INTO :H-RESULT
+               FROM SYSIBM.SYSDUMMY1
+           END-EXEC.
+
+           IF SQLCODE = 0
+              DISPLAY "Success"
+              MOVE H-RESULT(1:5000) TO P-RESULT
+           ELSE
+              DISPLAY "Error calling GEMINI_QUERY. SQLSTATE: " SQLSTATE
+              MOVE "ERROR" TO P-RESULT
+           END-IF.
+
+           GOBACK.

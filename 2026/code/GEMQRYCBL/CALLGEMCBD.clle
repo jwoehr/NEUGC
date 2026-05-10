@@ -1,0 +1,36 @@
+             PGM        PARM(&MODEL &QUERY)
+/*==============================================================================*/
+/* Program: CALLGEMCBD                                                          */
+/* Description: Call GEMCBLPGM with parameters from command                     */
+/*              API key is read from data area GEMINIKEY in library path        */
+/*==============================================================================*/
+/* CRTBNDCL PGM(CALLGEMCBD) SRCSTMF('/home/jwoehr/work/AI/CALLGEMCBD.clle') +   */
+/*   TGTCCSID(*JOB)                                                             */        
+/*==============================================================================*/
+/* CRTCMD CMD(YOURLIB/CALLGEMCBD) PGM(YOURLIB/CALLGEMCBD) +                     */
+/*  SRCSTMF('/path/to/CALLGEMCBD.cmd')                                          */
+/*==============================================================================*/
+
+
+             DCL        VAR(&MODEL) TYPE(*CHAR) LEN(100)
+             DCL        VAR(&QUERY) TYPE(*CHAR) LEN(500)
+             DCL        VAR(&CONTENT) TYPE(*CHAR) LEN(5000)
+             DCL        VAR(&RESULT) TYPE(*CHAR) LEN(5000)
+
+             /* Initialize */
+             CHGVAR     VAR(&CONTENT) VALUE(' ')
+             CHGVAR     VAR(&RESULT) VALUE(' ')
+
+             /* Pass query directly to COBOL which builds the JSON */
+             CHGVAR     VAR(&CONTENT) VALUE(&QUERY)
+
+             /* Call program - API key comes from data area */
+             CALL       PGM(GEMCBLPGM) PARM(&MODEL &CONTENT &RESULT)
+
+             /* Display result */
+             SNDUSRMSG  MSG('Gemini API call complete')
+             SNDUSRMSG  MSG('Result (first 500 chars):')
+             SNDUSRMSG  MSG(%SST(&RESULT 1 500))
+             SNDUSRMSG  MSG('Use DSPJOBLOG to see full result')
+
+             ENDPGM

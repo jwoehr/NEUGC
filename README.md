@@ -2,7 +2,9 @@
 
 ## 2026
 
-- Presentation PDF
+It was delightful to present at NEUGC 2026! The venue was perfect and the people wonderful. Here are my slides and some simple source code.
+
+- PresentationPDF
   - Jack Woehr's presentation decks from the 2026 event in PDF format
 - code
   - GEMQRY
@@ -13,3 +15,5 @@
     - RPG calling a local model running under Ollama using a display file
   - RPGOLLAMA
     - RPG calling a local model running under Ollama at command line
+
+Please open an issue in the repo if you have any problems!

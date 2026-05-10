@@ -6,6 +6,9 @@ This folder contains a COBOL implementation of the Gemini Query interface, equiv
 
 - **GEMQRYUIC.dspf** - Display file definition (identical to RPG version)
 - **GEMQRYUIC.sqlcblle** - COBOL program source
+- **GEMCBLPGM.sqlcblle** - Headless COBOL wrapper program for the Gemini API
+- **CALLGEMCBD.cmd** - Command definition to easily invoke the headless wrapper
+- **CALLGEMCBD.clle** - CL program implementation for the command
 - **README.md** - This file
 
 ## Compilation Instructions
@@ -16,12 +19,37 @@ This folder contains a COBOL implementation of the Gemini Query interface, equiv
 CRTDSPF FILE(YOURLIB/GEMQRYUIC) SRCSTMF('/path/to/GEMQRYUIC.dspf')
 ```
 
-### 2. Create the COBOL Program
+### 2. Create the COBOL Display Program
 
 ```cl
 CRTSQLCBLI OBJ(YOURLIB/GEMQRYUIC) +
   SRCSTMF('/path/to/GEMQRYUIC.sqlcblle') +
   COMMIT(*NONE) OBJTYPE(*PGM) CVTCCSID(*JOB)
+```
+
+### 3. Create the Headless COBOL Program
+
+```cl
+CRTSQLCBLI OBJ(YOURLIB/GEMCBLPGM) +
+  SRCSTMF('/path/to/GEMCBLPGM.sqlcblle') +
+  COMMIT(*NONE) OBJTYPE(*PGM) CVTCCSID(*JOB)
+```
+
+### 4. Create the CL Wrapper and Command for the Headless COBOL Program
+
+Compile the CL program first:
+
+```cl
+CRTBNDCL PGM(YOURLIB/CALLGEMCBD) +
+  SRCSTMF('/path/to/CALLGEMCBD.clle') +
+  TGTCCSID(*JOB)
+```
+
+Then create the command:
+
+```cl
+CRTCMD CMD(YOURLIB/CALLGEMCBD) PGM(YOURLIB/CALLGEMCBD) +
+  SRCSTMF('/path/to/CALLGEMCBD.cmd')
 ```
 
 ## Prerequisites
@@ -44,6 +72,12 @@ CALL YOURLIB/GEMQRYUIC
 OVRDBF FILE(GEMQRYUIC) TOFILE(YOURLIB/GEMQRYUIC)
 CALL YOURLIB/GEMQRYUIC
 DLTOVR FILE(GEMQRYUIC)
+```
+
+### Option 3: Using the Headless Command
+
+```cl
+YOURLIB/CALLGEMCBD MODEL('gemini-2.5-flash') QUERY('What is IBM i?')
 ```
 
 ## Known Issues
@@ -80,7 +114,7 @@ The COBOL program provides the same functionality as the RPG version:
 
 ## Bugs
 
-- Key handling is flakey, to say the least.
+- Key handling in GEMQRYUIC is flakey, to say the least.
   - Safest is to only
     - Type a query
     - Hit enter

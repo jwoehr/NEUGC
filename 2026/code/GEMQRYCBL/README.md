@@ -2,6 +2,12 @@
 
 This folder contains a COBOL implementation of the Gemini Query interface, equivalent to the RPG version in ../GEMQRY.
 
+## Requirements
+
+Reuired to compile and run these COBOL Gemini queries:
+
+- IBM's open source [AI-SDK-Db2-IBMi](https://github.com/IBM/AI-SDK-Db2-IBMi)
+
 ## Files
 
 - **GEMQRYUIC.dspf** - Display file definition (identical to RPG version)

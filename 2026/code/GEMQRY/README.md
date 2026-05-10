@@ -2,6 +2,12 @@
 
 This directory contains SQL scripts, user-defined functions (UDFs), and SQLRPGLE programs to enable generative AI capabilities directly from IBM i Db2.
 
+## Requirements
+
+Reuired to compile and run the RPG Gemini Query programs:
+
+- IBM's open source [AI-SDK-Db2-IBMi](https://github.com/IBM/AI-SDK-Db2-IBMi) installed
+
 ## SQL File
 
 ### SQL Function

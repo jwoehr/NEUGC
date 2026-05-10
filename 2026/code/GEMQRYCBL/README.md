@@ -19,13 +19,63 @@ Reuired to compile and run these COBOL Gemini queries:
 
 ## Compilation Instructions
 
-### 1. Create the Display File
+### Option 1: Using the Makefile (Recommended)
+
+A GNU Makefile is provided to automate the build process. This is the easiest method.
+
+**Prerequisites:**
+
+- GNU Make must be available on your IBM i system
+- Target library must exist
+- Source physical files (QDDSSRC and QCMDSRC) must exist in the target library
+
+**Basic Usage:**
+
+```bash
+# Build all objects (display file, programs, and command)
+make all LIB=YOURLIB
+
+# Build with custom source physical files
+make all LIB=YOURLIB SRCPF=MYSRCPF CMDSRCPF=MYCMDSRC
+
+# Build individual components
+make dspf LIB=YOURLIB        # Display file only
+make gemqryuic LIB=YOURLIB   # GEMQRYUIC program (includes display file)
+make gemcblpgm LIB=YOURLIB   # GEMCBLPGM program only
+make callgemcbd LIB=YOURLIB  # CALLGEMCBD CL program only
+make cmd LIB=YOURLIB         # CALLGEMCBD command (includes CL program)
+
+# Show help
+make help
+```
+
+**Makefile Parameters:**
+
+- `LIB` (required) - Target library for all objects
+- `SRCPF` (optional) - Source physical file for display file (default: QDDSSRC)
+- `CMDSRCPF` (optional) - Source physical file for command (default: QCMDSRC)
+- `SRCDIR` (optional) - Source directory (default: current directory)
+
+**What the Makefile Does:**
+
+1. Validates required parameters
+2. Copies GEMQRYUIC.dspf to source member and creates display file
+3. Compiles GEMQRYUIC.sqlcblle (COBOL interactive program)
+4. Compiles GEMCBLPGM.sqlcblle (COBOL headless program)
+5. Compiles CALLGEMCBD.clle (CL wrapper program)
+6. Copies CALLGEMCBD.cmd to source member and creates command
+
+### Option 2: Manual Compilation
+
+If you prefer to compile manually or don't have GNU Make available:
+
+#### 1. Create the Display File
 
 ```cl
 CRTDSPF FILE(YOURLIB/GEMQRYUIC) SRCSTMF('/path/to/GEMQRYUIC.dspf')
 ```
 
-### 2. Create the COBOL Display Program
+#### 2. Create the COBOL Display Program
 
 ```cl
 CRTSQLCBLI OBJ(YOURLIB/GEMQRYUIC) +
@@ -33,7 +83,7 @@ CRTSQLCBLI OBJ(YOURLIB/GEMQRYUIC) +
   COMMIT(*NONE) OBJTYPE(*PGM) CVTCCSID(*JOB)
 ```
 
-### 3. Create the Headless COBOL Program
+#### 3. Create the Headless COBOL Program
 
 ```cl
 CRTSQLCBLI OBJ(YOURLIB/GEMCBLPGM) +
@@ -41,7 +91,7 @@ CRTSQLCBLI OBJ(YOURLIB/GEMCBLPGM) +
   COMMIT(*NONE) OBJTYPE(*PGM) CVTCCSID(*JOB)
 ```
 
-### 4. Create the CL Wrapper and Command for the Headless COBOL Program
+#### 4. Create the CL Wrapper and Command for the Headless COBOL Program
 
 Compile the CL program first:
 

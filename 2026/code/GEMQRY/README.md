@@ -53,10 +53,60 @@ The `GEMQRYPGM` program provides a native IBM i interface to the `GEMINI_QUERY` 
 
 ### Compilation
 
+#### Option 1: Using the Makefile (Recommended)
+
+A GNU Makefile is provided to automate the build process. This is the easiest method.
+
+**Prerequisites:**
+
+- GNU Make must be available on your IBM i system
+- Target library must exist
+- Source physical files (QDDSSRC and QCMDSRC) must exist in the target library
+
+**Basic Usage:**
+
+```bash
+# Build all objects (display file, programs, and command)
+make all LIB=YOURLIB
+
+# Build with custom source physical files
+make all LIB=YOURLIB SRCPF=MYSRCPF CMDSRCPF=MYCMDSRC
+
+# Build individual components
+make dspf LIB=YOURLIB        # Display file only
+make gemqryuip LIB=YOURLIB   # GEMQRYUIP program (includes display file)
+make gemqrypgm LIB=YOURLIB   # GEMQRYPGM program only
+make callgemqyd LIB=YOURLIB  # CALLGEMQYD CL program only
+make cmd LIB=YOURLIB         # CALLGEMQYD command (includes CL program)
+
+# Show help
+make help
+```
+
+**Makefile Parameters:**
+
+- `LIB` (required) - Target library for all objects
+- `SRCPF` (optional) - Source physical file for display file (default: QDDSSRC)
+- `CMDSRCPF` (optional) - Source physical file for command (default: QCMDSRC)
+- `SRCDIR` (optional) - Source directory (default: current directory)
+
+**What the Makefile Does:**
+
+1. Validates required parameters
+2. Copies GEMQRYUI.dspf to source member and creates display file
+3. Compiles GEMQRYUIP.sqlrpgle (SQLRPGLE interactive program)
+4. Compiles GEMQRYPGM.sqlrpgle (SQLRPGLE headless program)
+5. Compiles CALLGEMQYD.clle (CL wrapper program)
+6. Copies CALLGEMQYD.cmd to source member and creates command
+
+#### Option 2: Manual Compilation
+
+If you prefer to compile manually or don't have GNU Make available:
+
 **1. Compile the SQLRPGLE program:**
 
 ```cl
-CRTSQLRPGI OBJ(YOURLIB/GEMQRYDTA) SRCSTMF('/path/to/GEMQRYPGM.sqlrpgle') OBJTYPE(*PGM) COMMIT(*NONE) DBGVIEW(*SOURCE)
+CRTSQLRPGI OBJ(YOURLIB/GEMQRYPGM) SRCSTMF('/path/to/GEMQRYPGM.sqlrpgle') OBJTYPE(*PGM) COMMIT(*NONE) DBGVIEW(*SOURCE)
 ```
 
 **2. Compile the CL program:**
@@ -161,6 +211,25 @@ The `GEMQRYUIP` program provides a full-screen interactive interface for queryin
 - Enjoy an enhanced color-coded display for improved usability
 
 ### Compilation of Screen Program
+
+#### Option 1: Using the Makefile for the Screen Program (Recommended)
+
+The Makefile in this directory can build the screen program along with all other components:
+
+```bash
+# Build all objects including the screen program
+make all LIB=YOURLIB
+
+# Build only the screen program components
+make dspf LIB=YOURLIB       # Display file only
+make gemqryuip LIB=YOURLIB  # Screen program (includes display file)
+```
+
+See the [Compilation](#compilation) section above for complete Makefile documentation.
+
+#### Option 2: Manual Compilation of the Screen Program
+
+If you prefer to compile manually:
 
 **1. Create the display file:**
 

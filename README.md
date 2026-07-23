@@ -8,9 +8,9 @@ It was delightful to present at NEUGC 2026! The venue was perfect and the people
   - Jack Woehr's presentation decks from the 2026 event in PDF format
 - code
   - GEMQRY
-    - RPG calls Gemini using IBM's open source [AI-SDK-Db2-IBMi](https://github.com/IBM/AI-SDK-Db2-IBMi) alongside some simple explanatory code.
+    - RPG calls Gemini using IBM's open source [AI-SDK-Db2-IBMi](https://github.com/IBM/AI-SDK-Db2-IBMi) - Also some simple explanatory code
   - GEMQRYCBL
-    - COBOL version calling Gemini as in GEMQRY
+    - COBOL version of the GEMQRY code calling Gemini as in GEMQRY using IBM's open source [AI-SDK-Db2-IBMi](https://github.com/IBM/AI-SDK-Db2-IBMi)
   - OLLAMARPG
     - RPG calling a local model running under Ollama using a display file
   - RPGOLLAMA

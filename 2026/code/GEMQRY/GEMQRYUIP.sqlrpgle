@@ -60,6 +60,9 @@ DCL-S displayLine CHAR(78);
 DCL-S pageNbrChar CHAR(4);
 DCL-S totPagesChar CHAR(4);
 DCL-S fullQuery VARCHAR(256);
+DCL-S escapedQuery VARCHAR(1024);
+DCL-S escPos INT(10);
+DCL-S escChar CHAR(1);
 
 // Array to hold line field pointers
 DCL-DS lineFields QUALIFIED;
@@ -151,9 +154,22 @@ DOW NOT Exit;
     ITER;
   ENDMON;
   
+  // Escape backslashes and double-quotes in user input before embedding in JSON
+  escapedQuery = '';
+  FOR escPos = 1 TO %LEN(%TRIM(fullQuery));
+    escChar = %SUBST(%TRIM(fullQuery): escPos: 1);
+    IF escChar = '\';
+      escapedQuery = escapedQuery + '\\';
+    ELSEIF escChar = '"';
+      escapedQuery = escapedQuery + '\"';
+    ELSE;
+      escapedQuery = escapedQuery + escChar;
+    ENDIF;
+  ENDFOR;
+
   // Build JSON content
   jsonQuery = '{"contents":[{"parts":[{"text":"' +
-              %TRIM(fullQuery) + '"}]}]}';
+              escapedQuery + '"}]}]}';
   
   hModel = %TRIM(MODEL);
   hContent = jsonQuery;

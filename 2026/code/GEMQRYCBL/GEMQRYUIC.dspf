@@ -113,7 +113,7 @@
      A                                      DSPATR(HI)
      A                                 10  2'SQLSTATE:'
      A                                      COLOR(PNK)
-     A            SQLSTATE       5A  O 11  5COLOR(YLW)
+     A            SQLSTATEOU     5A  O 11  5COLOR(YLW)
      A                                      DSPATR(HI)
      A*
      A            DUMMY3         1A  H

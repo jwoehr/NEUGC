@@ -1,4 +1,3 @@
-       PROCESS NOMONOPRC.
        IDENTIFICATION DIVISION.
        PROGRAM-ID. GEMCBLPGM.
       *======================================================================
@@ -20,15 +19,22 @@
        WORKING-STORAGE SECTION.
            EXEC SQL INCLUDE SQLCA END-EXEC.
 
+      * H-CONTENT holds the JSON request body. The JSON wrapper overhead is
+      * ~38 chars, leaving ~4962 chars for the (already sanitised) query text.
        01  WS-SQL-VARS.
-           05  H-MODEL         PIC X(100).
-           05  H-KEY           PIC X(100).
-           05  H-CONTENT       PIC X(5000).
-           05  H-RESULT        PIC X(32000).
+            05  H-MODEL         PIC X(100).
+            05  H-KEY           PIC X(100).
+            05  H-CONTENT       PIC X(5000).
+            05  H-RESULT        PIC X(5000).
 
        01  WS-VARIABLES.
-           05  WS-DTAARA-NAME  PIC X(10) VALUE "GEMINIKEY".
-           05  WS-IDX          PIC S9(4) COMP.
+             05  WS-DTAARA-NAME  PIC X(10) VALUE "GEMINIKEY".
+             05  WS-LIBL         PIC X(10) VALUE "*LIBL".
+             05  WS-IDX          PIC S9(4) COMP.
+             05  WS-ESCAPED-QUERY PIC X(5000).
+             05  WS-ESC-IDX      PIC S9(4) COMP.
+             05  WS-CHAR         PIC X(1).
+             05  WS-BACKSLASH    PIC X(1).
 
        LINKAGE SECTION.
        01  P-MODEL             PIC X(100).
@@ -58,10 +64,13 @@
                END-PERFORM
            END-IF.
            
+      * Escape JSON special characters in the query before embedding
+           PERFORM ESCAPE-JSON-CONTENT.
+
       * Build JSON content
            MOVE SPACES TO H-CONTENT
            STRING '{"contents":[{"parts":[{"text":"' DELIMITED BY SIZE
-                  FUNCTION TRIM(P-CONTENT) DELIMITED BY SIZE
+                  FUNCTION TRIM(WS-ESCAPED-QUERY) DELIMITED BY SIZE
                   '"}]}]}' DELIMITED BY SIZE
                   INTO H-CONTENT
            END-STRING.
@@ -71,8 +80,9 @@
            EXEC SQL
                SELECT TRIM(DATA_AREA_VALUE)
                INTO :H-KEY
-               FROM TABLE(QSYS2.DATA_AREA_INFO(DATA_AREA_NAME
-                => :WS-DTAARA-NAME))
+               FROM TABLE(QSYS2.DATA_AREA_INFO(
+                   DATA_AREA_NAME    => :WS-DTAARA-NAME,
+                   DATA_AREA_LIBRARY => :WS-LIBL))
            END-EXEC.
 
            IF SQLCODE NOT = 0 OR H-KEY = SPACES
@@ -93,17 +103,51 @@
                    TRIM(:H-MODEL),
                    TRIM(:H-KEY),
                    TRIM(:H-CONTENT)
-               ) AS VARCHAR(32000))
+               ) AS VARCHAR(5000))
                INTO :H-RESULT
                FROM SYSIBM.SYSDUMMY1
            END-EXEC.
 
            IF SQLCODE = 0
               DISPLAY "Success"
-              MOVE H-RESULT(1:5000) TO P-RESULT
+              MOVE H-RESULT TO P-RESULT
            ELSE
               DISPLAY "Error calling GEMINI_QUERY. SQLSTATE: " SQLSTATE
               MOVE "ERROR" TO P-RESULT
            END-IF.
 
            GOBACK.
+
+       ESCAPE-JSON-CONTENT.
+      * Escape backslash (X'E0') and double-quote in P-CONTENT for JSON.
+      * Backslash must be processed before double-quote to avoid double-escaping.
+           MOVE X'E0' TO WS-BACKSLASH.
+           MOVE SPACES TO WS-ESCAPED-QUERY.
+           MOVE 1 TO WS-ESC-IDX.
+           PERFORM VARYING WS-IDX FROM 1 BY 1 UNTIL WS-IDX > 5000
+               MOVE P-CONTENT(WS-IDX:1) TO WS-CHAR
+               EVALUATE TRUE
+                   WHEN WS-CHAR = WS-BACKSLASH
+                       IF WS-ESC-IDX <= 4999
+                           MOVE WS-BACKSLASH TO
+                               WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           ADD 1 TO WS-ESC-IDX
+                           MOVE WS-BACKSLASH TO
+                               WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           ADD 1 TO WS-ESC-IDX
+                       END-IF
+                   WHEN WS-CHAR = '"'
+                       IF WS-ESC-IDX <= 4999
+                           MOVE WS-BACKSLASH TO
+                               WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           ADD 1 TO WS-ESC-IDX
+                           MOVE '"' TO WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           ADD 1 TO WS-ESC-IDX
+                       END-IF
+                   WHEN OTHER
+                       IF WS-ESC-IDX <= 5000
+                          MOVE WS-CHAR TO WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           ADD 1 TO WS-ESC-IDX
+                       END-IF
+               END-EVALUATE
+           END-PERFORM.

@@ -56,7 +56,7 @@
            05  ERRMSG2                     PIC X(78).
            05  ERRMSG3                     PIC X(78).
            05  ERRMSG4                     PIC X(22).
-           05  SQLSTATEOU                PIC X(5).
+           05  SQLSTATEOU                  PIC X(5).
            05  DUMMY3                      PIC X(1).
        
       * File status for workstation file
@@ -294,9 +294,9 @@
                END-IF
 
       * Calculate result length and pages
-               MOVE FUNCTION TRIM(H-RESULT-TEXT) TO WS-DISPLAY-LINE
-               MOVE FUNCTION LENGTH(WS-DISPLAY-LINE) TO WS-TRIM-LEN
-               MOVE WS-TRIM-LEN TO WS-RESULT-LEN
+               MOVE FUNCTION LENGTH(
+                   FUNCTION TRIM(H-RESULT-TEXT))
+                   TO WS-RESULT-LEN
 
                COMPUTE WS-PAGE-CAPACITY = LINES-PER-PAGE * LINE-WIDTH
                COMPUTE WS-TOTAL-PAGES = WS-RESULT-LEN / WS-PAGE-CAPACITY
@@ -437,7 +437,7 @@
       * Escape backslash (X'E0') and double-quote in WS-FULL-QUERY for JSON.
       * Backslash must be processed before double-quote to avoid double-escaping.
       * WS-ESCAPED-QUERY is PIC X(544), double the 272-char source worst-case.
-           MOVE X'E0' TO WS-BACKSLASH.
+           MOVE X"E0" TO WS-BACKSLASH.
            MOVE SPACES TO WS-ESCAPED-QUERY.
            MOVE 1 TO WS-ESC-IDX.
            PERFORM VARYING WS-LOOP-INDEX FROM 1 BY 1

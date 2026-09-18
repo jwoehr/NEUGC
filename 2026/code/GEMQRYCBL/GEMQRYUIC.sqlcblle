@@ -15,8 +15,7 @@
        
        DATA DIVISION.
        FILE SECTION.
-       FD  DSPF
-           LABEL RECORDS ARE STANDARD.
+       FD  DSPF.
        01  DSPF-RECORD                     PIC X(2000).
        
        WORKING-STORAGE SECTION.
@@ -137,8 +136,10 @@
                DISPLAY "ERROR OPENING DSPF: " WS-FILE-STATUS
                STOP RUN
            END-IF
-           MOVE '{"contents":[{"parts":[{"text":"' TO WS-JSON-PREFIX
-           MOVE '"}]}]}' TO WS-JSON-SUFFIX
+           MOVE 
+             "{""contents"":[{""parts"":[{""text"":""" 
+             TO WS-JSON-PREFIX
+           MOVE """}]}]}" TO WS-JSON-SUFFIX
            MOVE SPACES TO DUMMY1
            MOVE SPACES TO DUMMY2
            MOVE SPACES TO DUMMY3
@@ -453,12 +454,12 @@
                                WS-ESCAPED-QUERY(WS-ESC-IDX:1)
                            ADD 1 TO WS-ESC-IDX
                        END-IF
-                   WHEN WS-CHAR = '"'
+                   WHEN WS-CHAR = QUOTE
                        IF WS-ESC-IDX <= 543
                            MOVE WS-BACKSLASH TO
                                WS-ESCAPED-QUERY(WS-ESC-IDX:1)
                            ADD 1 TO WS-ESC-IDX
-                           MOVE '"' TO WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           MOVE QUOTE TO WS-ESCAPED-QUERY(WS-ESC-IDX:1)
                            ADD 1 TO WS-ESC-IDX
                        END-IF
                    WHEN OTHER

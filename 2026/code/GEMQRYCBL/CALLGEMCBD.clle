@@ -13,7 +13,7 @@
 
 
              DCL        VAR(&MODEL) TYPE(*CHAR) LEN(100)
-             DCL        VAR(&QUERY) TYPE(*CHAR) LEN(500)
+             DCL        VAR(&QUERY) TYPE(*CHAR) LEN(5000)
              DCL        VAR(&CONTENT) TYPE(*CHAR) LEN(5000)
              DCL        VAR(&RESULT) TYPE(*CHAR) LEN(5000)
 

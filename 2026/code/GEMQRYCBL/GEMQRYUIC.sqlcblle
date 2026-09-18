@@ -56,7 +56,7 @@
            05  ERRMSG2                     PIC X(78).
            05  ERRMSG3                     PIC X(78).
            05  ERRMSG4                     PIC X(22).
-           05  SQLSTATE-OUT                PIC X(5).
+           05  SQLSTATEOU                  PIC X(5).
            05  DUMMY3                      PIC X(1).
        
       * File status for workstation file
@@ -75,15 +75,22 @@
            05  WS-API-KEY                  PIC X(100).
        
       * SQL host variables
+      * H-CONTENT holds the JSON request body.
+      * Sized for worst-case escaped query (544 chars) + JSON wrapper (56 chars).
+      * Effective user query limit: 272 raw chars across 4 input fields (4 x 68).
        01  SQL-HOST-VARS.
            05  H-MODEL                     PIC X(100).
            05  H-KEY                       PIC X(100).
-           05  H-CONTENT                   PIC X(5000).
+           05  H-CONTENT                   PIC X(600).
            05  H-RESULT-TEXT               PIC X(32000).
        
       * Working variables
+      * WS-JSON-QUERY sized to match H-CONTENT (600 chars).
+       01  WS-JSON-WRAPPER.
+           05  WS-JSON-PREFIX  PIC X(32).
+           05  WS-JSON-SUFFIX  PIC X(8).
        01  WS-VARIABLES.
-           05  WS-JSON-QUERY               PIC X(5000).
+           05  WS-JSON-QUERY               PIC X(600).
            05  WS-RESULT-LEN               PIC S9(9) COMP.
            05  WS-CURRENT-PAGE             PIC S9(9) COMP VALUE 1.
            05  WS-TOTAL-PAGES              PIC S9(9) COMP VALUE 1.
@@ -92,9 +99,13 @@
            05  WS-LINE-LEN                 PIC S9(9) COMP.
            05  WS-LOOP-INDEX               PIC S9(9) COMP.
            05  WS-DISPLAY-LINE             PIC X(78).
-           05  WS-PAGE-NBR-CHAR            PIC ZZZ9.
-           05  WS-TOT-PAGES-CHAR           PIC ZZZ9.
+           05  WS-PAGE-NBR-CHAR            PIC ZZ9.
+           05  WS-TOT-PAGES-CHAR           PIC ZZ9.
            05  WS-FULL-QUERY               PIC X(272).
+           05  WS-FQT                      PIC X(272).
+           05  WS-ESCAPED-QUERY            PIC X(544).
+           05  WS-ESC-IDX                  PIC S9(9) COMP.
+           05  WS-CHAR                     PIC X(1).
            05  WS-PAGE-CAPACITY            PIC S9(9) COMP.
            05  WS-REMAINDER                PIC S9(9) COMP.
            05  WS-EXIT-FLAG                PIC X VALUE "N".
@@ -102,7 +113,11 @@
            05  WS-CANCEL-FLAG              PIC X VALUE "N".
                88  CANCEL-REQUESTED        VALUE "Y".
            05  WS-SQLCODE-CHAR             PIC -(9)9.
+           05  WS-TRIM-LEN                 PIC S9(9) COMP.
+           05  WS-SQLCODE-STR              PIC X(12).
            05  WS-DTAARA-NAME              PIC X(10) VALUE "GEMINIKEY".
+           05  WS-LIBL                     PIC X(10) VALUE "*LIBL".
+           05  WS-BACKSLASH                PIC X(1).
        
       * Constants
        01  WS-CONSTANTS.
@@ -122,6 +137,8 @@
                DISPLAY "ERROR OPENING DSPF: " WS-FILE-STATUS
                STOP RUN
            END-IF
+           MOVE '{"contents":[{"parts":[{"text":"' TO WS-JSON-PREFIX
+           MOVE '"}]}]}' TO WS-JSON-SUFFIX
            MOVE SPACES TO DUMMY1
            MOVE SPACES TO DUMMY2
            MOVE SPACES TO DUMMY3
@@ -140,58 +157,47 @@
            MOVE SPACES TO QUERY2
            MOVE SPACES TO QUERY3
            MOVE SPACES TO QUERY4
-           
+
       * Display input screen
            PERFORM DISPLAY-INPUT-SCREEN
-           
+
            IF WS-INDICATOR(03) = B"1"
                MOVE "Y" TO WS-EXIT-FLAG
-               GO TO MAIN-LOOP-EXIT
-           END-IF
-           
-           IF WS-INDICATOR(12) = B"1"
-               GO TO MAIN-LOOP-EXIT
-           END-IF
-           
+           ELSE IF WS-INDICATOR(12) = B"1"
+               CONTINUE
+           ELSE
       * Validate input
-           IF MODEL = SPACES
-               MOVE "gemini-2.5-pro" TO MODEL
-           END-IF
-           
+               IF MODEL = SPACES
+                   MOVE "gemini-2.5-pro" TO MODEL
+               END-IF
+
       * Combine query fields
-           STRING QUERY DELIMITED BY SIZE
-                  QUERY2 DELIMITED BY SIZE
-                  QUERY3 DELIMITED BY SIZE
-                  QUERY4 DELIMITED BY SIZE
-                  INTO WS-FULL-QUERY
-           END-STRING
-           
-           IF WS-FULL-QUERY = SPACES
-               MOVE "Query cannot be empty" TO ERRMSG
-               MOVE SPACES TO ERRMSG2
-               MOVE SPACES TO ERRMSG3
-               MOVE SPACES TO ERRMSG4
-               PERFORM DISPLAY-ERROR-SCREEN
-               GO TO MAIN-LOOP-EXIT
-           END-IF
-           
+               STRING QUERY DELIMITED BY SIZE
+                      QUERY2 DELIMITED BY SIZE
+                      QUERY3 DELIMITED BY SIZE
+                      QUERY4 DELIMITED BY SIZE
+                      INTO WS-FULL-QUERY
+               END-STRING
+
+               IF WS-FULL-QUERY = SPACES
+                   MOVE "Query cannot be empty" TO ERRMSG
+                   MOVE SPACES TO ERRMSG2
+                   MOVE SPACES TO ERRMSG3
+                   MOVE SPACES TO ERRMSG4
+                   PERFORM DISPLAY-ERROR-SCREEN
+               ELSE
       * Read API key from data area
-           PERFORM READ-API-KEY
-           IF WS-EXIT-FLAG = "Y"
-               GO TO MAIN-LOOP-EXIT
-           END-IF
-           
+                   PERFORM READ-API-KEY
+                   IF NOT EXIT-REQUESTED
       * Call Gemini API
-           PERFORM CALL-GEMINI-API
-           IF WS-EXIT-FLAG = "Y"
-               GO TO MAIN-LOOP-EXIT
-           END-IF
-           
+                       PERFORM CALL-GEMINI-API
+                       IF NOT EXIT-REQUESTED
       * Display response with paging
-           PERFORM DISPLAY-RESPONSE-LOOP.
-       
-       MAIN-LOOP-EXIT.
-           EXIT.
+                           PERFORM DISPLAY-RESPONSE-LOOP
+                       END-IF
+                   END-IF
+               END-IF
+           END-IF.
        
        DISPLAY-INPUT-SCREEN.
            WRITE DSPF-RECORD FROM WS-INPUTSCR-RECORD
@@ -209,23 +215,24 @@
            EXEC SQL
                SELECT TRIM(DATA_AREA_VALUE)
                INTO :WS-API-KEY-DTAARA.WS-API-KEY
-               FROM TABLE(QSYS2.DATA_AREA_INFO(DATA_AREA_NAME
-                => :WS-DTAARA-NAME))
+               FROM TABLE(QSYS2.DATA_AREA_INFO(
+                   DATA_AREA_NAME    => :WS-DTAARA-NAME,
+                   DATA_AREA_LIBRARY => :WS-LIBL))
            END-EXEC
            
            IF SQLCODE NOT = 0
                MOVE "Error reading data area GEMINIKEY" TO ERRMSG
                MOVE SQLCODE TO WS-SQLCODE-CHAR
-               STRING "SQLCODE: " WS-SQLCODE-CHAR
-                   DELIMITED BY SIZE INTO ERRMSG2
+               MOVE "SQLCODE: " TO WS-SQLCODE-STR
+               MOVE WS-SQLCODE-CHAR TO ERRMSG2
+               STRING WS-SQLCODE-STR DELIMITED BY SIZE INTO ERRMSG2
                MOVE SQLSTATE TO ERRMSG3
                MOVE SPACES TO ERRMSG4
                PERFORM DISPLAY-ERROR-SCREEN
                MOVE "Y" TO WS-EXIT-FLAG
            ELSE
                IF WS-API-KEY OF WS-API-KEY-DTAARA = SPACES
-                   MOVE "API key is empty in data area GEMINIKEY"
-                       TO ERRMSG
+                   MOVE "API key empty in GEMINIKEY data area" TO ERRMSG
                    MOVE SPACES TO ERRMSG2
                    MOVE SPACES TO ERRMSG3
                    MOVE SPACES TO ERRMSG4
@@ -237,15 +244,18 @@
            END-IF.
        
        CALL-GEMINI-API.
+      * Escape JSON special characters in the query before embedding
+           PERFORM ESCAPE-JSON-QUERY.
+
       * Build JSON content
-           STRING '{"contents":[{"parts":[{"text":"'
-                  DELIMITED BY SIZE
-                  FUNCTION TRIM(WS-FULL-QUERY)
-                  DELIMITED BY SIZE
-                  '"}]}]}'
-                  DELIMITED BY SIZE
-             INTO WS-JSON-QUERY
-           END-STRING
+           MOVE SPACES TO WS-JSON-QUERY
+           MOVE FUNCTION TRIM(WS-ESCAPED-QUERY) TO WS-FULL-QUERY
+           MOVE WS-JSON-PREFIX TO WS-JSON-QUERY(1:32)
+           MOVE WS-FULL-QUERY  TO WS-JSON-QUERY(33:544)
+           MOVE FUNCTION TRIM(WS-FULL-QUERY) TO WS-FQT
+           MOVE FUNCTION LENGTH(WS-FQT) TO WS-TRIM-LEN
+           COMPUTE WS-TRIM-LEN = 32 + WS-TRIM-LEN + 1
+           MOVE WS-JSON-SUFFIX TO WS-JSON-QUERY(WS-TRIM-LEN:8)
            
            MOVE FUNCTION TRIM(MODEL) TO H-MODEL
            MOVE WS-JSON-QUERY TO H-CONTENT
@@ -255,7 +265,7 @@
                SELECT CAST(GEMINI_QUERY(
                    TRIM(:H-MODEL),
                    TRIM(:H-KEY),
-                   TRIM(:H-CONTENT)
+                   CAST(:H-CONTENT AS CLOB(600))
                ) AS VARCHAR(32000))
                INTO :H-RESULT-TEXT
                FROM SYSIBM.SYSDUMMY1
@@ -265,48 +275,44 @@
            IF SQLCODE NOT = 0
                MOVE "Error calling Gemini API" TO ERRMSG
                MOVE SQLCODE TO WS-SQLCODE-CHAR
-               STRING "SQLCODE: " WS-SQLCODE-CHAR
-                   DELIMITED BY SIZE INTO ERRMSG2
+               MOVE "SQLCODE: " TO WS-SQLCODE-STR
+               MOVE WS-SQLCODE-CHAR TO ERRMSG2
+               STRING WS-SQLCODE-STR DELIMITED BY SIZE INTO ERRMSG2
                MOVE SPACES TO ERRMSG3
                MOVE SPACES TO ERRMSG4
-               MOVE SQLSTATE TO SQLSTATE-OUT
+               MOVE SQLSTATE TO SQLSTATEOU
                PERFORM DISPLAY-ERROR-SCREEN
                MOVE "Y" TO WS-EXIT-FLAG
-               GO TO CALL-GEMINI-API-EXIT
-           END-IF
-           
+           ELSE
       * Check for truncation warning
-           IF SQLWARN0 = "W"
-               MOVE "Warning: Response truncated to 32000 characters"
-                   TO ERRMSG
-               MOVE "Full response may be larger than displayed"
-                   TO ERRMSG2
-               MOVE SPACES TO ERRMSG3
-               MOVE SPACES TO ERRMSG4
-               PERFORM DISPLAY-ERROR-SCREEN
-           END-IF
-           
+               IF SQLWARN0 = "W"
+                   MOVE "Warning: Response may be truncated" TO ERRMSG
+                   MOVE "Response may be larger than shown" TO ERRMSG2
+                   MOVE SPACES TO ERRMSG3
+                   MOVE SPACES TO ERRMSG4
+                   PERFORM DISPLAY-ERROR-SCREEN
+               END-IF
+
       * Calculate result length and pages
-           MOVE FUNCTION LENGTH(FUNCTION TRIM(H-RESULT-TEXT))
-               TO WS-RESULT-LEN
-           
-           COMPUTE WS-PAGE-CAPACITY = LINES-PER-PAGE * LINE-WIDTH
-           DIVIDE WS-RESULT-LEN BY WS-PAGE-CAPACITY
-               GIVING WS-TOTAL-PAGES
-               REMAINDER WS-REMAINDER
-           
-           IF WS-REMAINDER > 0
-               ADD 1 TO WS-TOTAL-PAGES
-           END-IF
-           
-           IF WS-TOTAL-PAGES = 0
-               MOVE 1 TO WS-TOTAL-PAGES
-           END-IF
-           
-           MOVE 1 TO WS-CURRENT-PAGE.
-       
-       CALL-GEMINI-API-EXIT.
-           EXIT.
+               MOVE FUNCTION LENGTH(
+                   FUNCTION TRIM(H-RESULT-TEXT))
+                   TO WS-RESULT-LEN
+
+               COMPUTE WS-PAGE-CAPACITY = LINES-PER-PAGE * LINE-WIDTH
+               COMPUTE WS-TOTAL-PAGES = WS-RESULT-LEN / WS-PAGE-CAPACITY
+               COMPUTE WS-TRIM-LEN = WS-TOTAL-PAGES * WS-PAGE-CAPACITY
+               COMPUTE WS-REMAINDER = WS-RESULT-LEN - WS-TRIM-LEN
+
+               IF WS-REMAINDER > 0
+                   ADD 1 TO WS-TOTAL-PAGES
+               END-IF
+
+               IF WS-TOTAL-PAGES = 0
+                   MOVE 1 TO WS-TOTAL-PAGES
+               END-IF
+
+               MOVE 1 TO WS-CURRENT-PAGE
+           END-IF.
        
        DISPLAY-RESPONSE-LOOP.
            MOVE "N" TO WS-CANCEL-FLAG
@@ -427,5 +433,41 @@
                AT END CONTINUE
            END-READ.
        
+       ESCAPE-JSON-QUERY.
+      * Escape backslash (X'E0') and double-quote in WS-FULL-QUERY for JSON.
+      * Backslash must be processed before double-quote to avoid double-escaping.
+      * WS-ESCAPED-QUERY is PIC X(544), double the 272-char source worst-case.
+           MOVE X"E0" TO WS-BACKSLASH.
+           MOVE SPACES TO WS-ESCAPED-QUERY.
+           MOVE 1 TO WS-ESC-IDX.
+           PERFORM VARYING WS-LOOP-INDEX FROM 1 BY 1
+               UNTIL WS-LOOP-INDEX > 272
+               MOVE WS-FULL-QUERY(WS-LOOP-INDEX:1) TO WS-CHAR
+               EVALUATE TRUE
+                   WHEN WS-CHAR = WS-BACKSLASH
+                       IF WS-ESC-IDX <= 543
+                           MOVE WS-BACKSLASH TO
+                               WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           ADD 1 TO WS-ESC-IDX
+                           MOVE WS-BACKSLASH TO
+                               WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           ADD 1 TO WS-ESC-IDX
+                       END-IF
+                   WHEN WS-CHAR = '"'
+                       IF WS-ESC-IDX <= 543
+                           MOVE WS-BACKSLASH TO
+                               WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           ADD 1 TO WS-ESC-IDX
+                           MOVE '"' TO WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           ADD 1 TO WS-ESC-IDX
+                       END-IF
+                   WHEN OTHER
+                       IF WS-ESC-IDX <= 544
+                          MOVE WS-CHAR TO WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           ADD 1 TO WS-ESC-IDX
+                       END-IF
+               END-EVALUATE
+           END-PERFORM.
+
        TERMINATE-PROGRAM.
            CLOSE DSPF.

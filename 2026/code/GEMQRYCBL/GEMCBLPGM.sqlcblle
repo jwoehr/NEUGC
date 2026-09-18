@@ -42,6 +42,7 @@
        01  P-RESULT            PIC X(5000).
 
        PROCEDURE DIVISION USING P-MODEL P-CONTENT P-RESULT.
+       MAIN-LOGIC.
       * Initialize result
            MOVE SPACES TO P-RESULT.
 
@@ -68,9 +69,12 @@
 
       * Build JSON content
            MOVE SPACES TO H-CONTENT
-           STRING '{"contents":[{"parts":[{"text":"' DELIMITED BY SIZE
+           STRING "{""contents"":[{""parts"":[{""text"":"
+                  DELIMITED BY SIZE
+                  QUOTE DELIMITED BY SIZE
                   FUNCTION TRIM(WS-ESCAPED-QUERY) DELIMITED BY SIZE
-                  '"}]}]}' DELIMITED BY SIZE
+                  QUOTE DELIMITED BY SIZE
+                  "}]}]}" DELIMITED BY SIZE
                   INTO H-CONTENT
            END-STRING.
 
@@ -118,9 +122,9 @@
            GOBACK.
 
        ESCAPE-JSON-CONTENT.
-      * Escape backslash (X'E0') and double-quote in P-CONTENT for JSON.
+      * Escape backslash (X"E0") and double-quote in P-CONTENT for JSON.
       * Backslash must be processed before double-quote to avoid double-escaping.
-           MOVE X'E0' TO WS-BACKSLASH.
+           MOVE X"E0" TO WS-BACKSLASH.
            MOVE SPACES TO WS-ESCAPED-QUERY.
            MOVE 1 TO WS-ESC-IDX.
            PERFORM VARYING WS-IDX FROM 1 BY 1 UNTIL WS-IDX > 5000
@@ -135,12 +139,12 @@
                                WS-ESCAPED-QUERY(WS-ESC-IDX:1)
                            ADD 1 TO WS-ESC-IDX
                        END-IF
-                   WHEN WS-CHAR = '"'
+                   WHEN WS-CHAR = QUOTE
                        IF WS-ESC-IDX <= 4999
                            MOVE WS-BACKSLASH TO
                                WS-ESCAPED-QUERY(WS-ESC-IDX:1)
                            ADD 1 TO WS-ESC-IDX
-                           MOVE '"' TO WS-ESCAPED-QUERY(WS-ESC-IDX:1)
+                           MOVE QUOTE TO WS-ESCAPED-QUERY(WS-ESC-IDX:1)
                            ADD 1 TO WS-ESC-IDX
                        END-IF
                    WHEN OTHER

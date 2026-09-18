@@ -36,7 +36,6 @@
        01  P-RESULT            PIC X(5000).
 
        PROCEDURE DIVISION USING P-MODEL P-CONTENT P-RESULT.
-       MAIN-LOGIC.
       * Initialize result
            MOVE SPACES TO P-RESULT.
 
